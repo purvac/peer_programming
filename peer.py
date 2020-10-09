@@ -55,23 +55,21 @@ server_socket.listen()
 print('listening on', (IPAddr, server_port))
 #lsock.setblocking(False)    #calls made to this client will no longer block
 #sel.register(server_socket, selectors.EVENT_READ, data=None)    #register the socket to be monitored by sel select
-
+#"""
 def receive_message(client_socket):
     try:
         # Receive our "header" containing message length, it's size is defined and constant
         message_header = client_socket.recv(HEADER_LENGTH)
-        if not len(message_header): # If we received no data, client gracefully closed a connection
-            return False
+        #if not len(message_header): # If we received no data, client gracefully closed a connection
+            #return "No data recvd, connection closed from client end gracefully"
         message_length = int(message_header.decode('utf-8'))    # Convert header to int value
         # Return an object of message header and message data
-        return {'header': message_header, 'data': client_socket.recv(message_length)}
+        #return {'header': message_header, 'data': client_socket.recv(message_length)}
+        #print("Received message from " + client_address[0] + ": " + client_socket.recv(message_length))
+        return message_length
     except:
-        # If we are here, client closed connection violently, for example by pressing ctrl+c on his script
-        # or just lost his connection
-        # socket.close() also invokes socket.shutdown(socket.SHUT_RDWR) what sends information about closing the socket (shutdown read/write)
-        # and that's also a cause when we receive an empty message
         return False
-
+#"""
 sockets_list = [server_socket]
 
 clients = []
@@ -84,7 +82,7 @@ while True:
             client_socket, client_address = server_socket.accept()
             clients.append(client_address)
             #user = receive_message(client_socket)
-            print(clients)
+            #print(clients)
             #print("Client Socket Details: ")
             #print(client_socket)
             #print(client_address)
@@ -94,6 +92,26 @@ while True:
                 print(i, sockets_list)
                 print("\n")
             """
+    else:
+            # Receive message
+            message_length = receive_message(socket)
+            # If False, client disconnected, cleanup
+            if message_length != 0:
+                print("Received message from " + client_address[0] + ": " + client_socket.recv(message_length).decode('utf-8'))
+            else:
+                print("No data recvd, connection closed from client end gracefully")
+            #print(message)
+            """
+            if message is False:
+                print('Closed connection from: ', client_address)
+                # Remove from list for socket.socket()
+                sockets_list.remove(socket)
+                # Remove from our list of users
+                print(clients)
+                print(client_address)
+                clients.remove(client_address)
 
+                continue
+            """
             #exit()
 
