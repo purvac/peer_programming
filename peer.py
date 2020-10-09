@@ -92,7 +92,7 @@ while True:
                 print(i, sockets_list)
                 print("\n")
             """
-    else:
+        else:
             # Receive message
             message_length = receive_message(socket)
             # If False, client disconnected, cleanup
