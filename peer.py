@@ -2,11 +2,12 @@ import select
 import errno
 import sys
 import socket
+import selectors
 
 HEADER_LENGTH = 10
 
 if len(sys.argv) != 2:
-    print('Incorrect input: Only 1 argument can be passed, you have passed ', len(server_port)-1)
+    print('Incorrect input: Only 1 argument can be passed, you have passed ', len(sys.argv)-1)
     exit()
 
 if sys.argv[1].isdigit() == False:
@@ -43,64 +44,56 @@ if input_command == "myip":
 if input_command == "myport":
     print(server_port)
 
-if "connect" in input_command:
-    if len(input_command) != 3:
-        print(incorrect input)
-
-host = socket.gethostname()
-#IP = socket.gethostname()
-server_port = 12345
-client_port = 12346
-
-def receive_message(client_socket):
-
-    try:
-        message_header = client_socket.recv(HEADER_LENGTH)
-
-        if not len(message_header):
-            return False
-
-        message_length = int(message_header.decode('utf-8').strip())
-
-        return {'header': message_header, 'data': client_socket.recv(message_length)}
-
-    except:
-        return False
-
+#sel = selectors.DefaultSelector()
+#server program
 
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server_socket.bind((IPAddr, server_port))
+server_socket.bind((IPAddr, int(server_port)))
+print("server socket: ")
+print(server_socket)
 server_socket.listen()
+print('listening on', (IPAddr, server_port))
+#lsock.setblocking(False)    #calls made to this client will no longer block
+#sel.register(server_socket, selectors.EVENT_READ, data=None)    #register the socket to be monitored by sel select
+
+def receive_message(client_socket):
+    try:
+        # Receive our "header" containing message length, it's size is defined and constant
+        message_header = client_socket.recv(HEADER_LENGTH)
+        if not len(message_header): # If we received no data, client gracefully closed a connection
+            return False
+        message_length = int(message_header.decode('utf-8'))    # Convert header to int value
+        # Return an object of message header and message data
+        return {'header': message_header, 'data': client_socket.recv(message_length)}
+    except:
+        # If we are here, client closed connection violently, for example by pressing ctrl+c on his script
+        # or just lost his connection
+        # socket.close() also invokes socket.shutdown(socket.SHUT_RDWR) what sends information about closing the socket (shutdown read/write)
+        # and that's also a cause when we receive an empty message
+        return False
 
 sockets_list = [server_socket]
 
-while True:
-    read_sockets, _, _ = select.select(timeout=0)
+clients = []
 
-    #print("list of incoming connections:", read_sockets)
+while True:
+    read_sockets, _, exception_sockets = select.select(sockets_list, [], sockets_list)
 
     for socket in read_sockets:
         if socket == server_socket:
-            peer_socket, address = server_socket.accept()      #clientsocket is socket object and address is ip address
-            print(f"Connection with client {address} has been established!")
-            user = receive_message(peer_socket)
-            if user is False:   #client disconnected before he sent his name
-                    continue
+            client_socket, client_address = server_socket.accept()
+            clients.append(client_address)
+            #user = receive_message(client_socket)
+            print(clients)
+            #print("Client Socket Details: ")
+            #print(client_socket)
+            #print(client_address)
             sockets_list.append(client_socket)
+            """
+            for i in range (len(sockets_list)):
+                print(i, sockets_list)
+                print("\n")
+            """
 
-        else:   #existing socket is sending a message
-            # Receive message
-            message = receive_message(notified_socket)
-
-            # If False, client disconnected, cleanup
-            if message is False:
-                print('Closed connection from: {}'.format(clients[notified_socket]['data'].decode('utf-8')))
-
-        msg = f'{len(msg):< {HEADERSIZE}}' + msg
-
-
-#**************************Peer side****************************************
-client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-client_socket.connect((peer_IP, peer_port))
-
+            #exit()
 
